@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Annytab;
+using Annytab.Abstract;
 
 namespace TestProgram
 {
@@ -10940,7 +10941,7 @@ namespace TestProgram
                 "zwoet", "zwol", "zwoll", "zwoll", "zwol", "zwom" };
 
             // Create a dutch stemmer
-            Stemmer stemmer = new DutchStemmer();
+            AbstractStemmer stemmer = new DutchStemmer();
 
             // Test the stemmer
             for (int i = 0; i < words.Length; i++)

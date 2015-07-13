@@ -1,354 +1,270 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Linq;
+using Annytab.Abstract;
 
 namespace Annytab
 {
+  /// <summary>
+  ///   This class is used to strip german words to the steam
+  ///   This class is based on the german stemming algorithm from Snowball
+  ///   http://snowball.tartarus.org/algorithms/german/stemmer.html
+  /// </summary>
+  public class GermanStemmer : AbstractStemmer
+  {
+    private readonly string[] _endingsStep1A;
+    private readonly string[] _endingsStep1B;
+    private readonly string[] _endingsStep2;
+    private readonly string[] _endingsStep3;
+    private readonly char[] _validSEndings;
+    private readonly char[] _validStEndings;
+
     /// <summary>
-    /// This class is used to strip german words to the steam
-    /// This class is based on the german stemming algorithm from Snowball
-    /// http://snowball.tartarus.org/algorithms/german/stemmer.html
+    ///   Create a new german stemmer with default properties
     /// </summary>
-    public class GermanStemmer : Stemmer
+    public GermanStemmer()
     {
-        #region Variables
+      // Set values for instance variables
+      Vowels = new[] {'a', 'e', 'i', 'o', 'u', 'y', 'ä', 'ö', 'ü'};
+      _validSEndings = new[] {'b', 'd', 'f', 'g', 'h', 'k', 'l', 'm', 'n', 'r', 't'};
+      _validStEndings = new[] {'b', 'd', 'f', 'g', 'h', 'k', 'l', 'm', 'n', 't'};
+      _endingsStep1A = new[] {"ern", "em", "er"};
+      _endingsStep1B = new[] {"es", "en", "e"};
+      _endingsStep2 = new[] {"est", "en", "er"};
+      _endingsStep3 = new[] {"keit", "heit", "lich", "isch", "ung", "end", "ik", "ig"};
+    } // End of the constructor
 
-        private char[] valid_s_endings;
-        private char[] valid_st_endings;
-        private string[] endingsStep1a;
-        private string[] endingsStep1b;
-        private string[] endingsStep2;
-        private string[] endingsStep3;
+    /// <summary>
+    ///   Get the steam word from a specific word
+    /// </summary>
+    /// <param name="word">The word to strip</param>
+    /// <returns>The stripped word</returns>
+    public override string GetSteamWord(string word)
+    {
+      // Replace ß by ss
+      word = word.Replace("ß", "ss");
 
-        #endregion
+      // Make sure that the word is in lower case characters
+      word = word.ToLowerInvariant();
 
-        #region Constructor
+      // Create a char array that can be used over an over again
+      var chars = word.ToCharArray();
 
-        /// <summary>
-        /// Create a new german stemmer with default properties
-        /// </summary>
-        public GermanStemmer()
-            : base()
+      // Put u and y between vowels into upper case
+      var charCount = chars.Length - 1;
+      for (var i = 1; i < charCount; i++)
+      {
+        if (chars[i] == 'u' && IsVowel(chars[i - 1]) && IsVowel(chars[i + 1]))
+          chars[i] = 'U';
+        else if (chars[i] == 'y' && IsVowel(chars[i - 1]) && IsVowel(chars[i + 1]))
+          chars[i] = 'Y';
+      }
+
+      // Get indexes for R1 and R2
+      var partIndexR = CalculateR1R2(chars);
+
+      // Recreate the word
+      word = new string(chars);
+
+      // Create the r1 and r2 string
+      var strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
+
+      // **********************************************
+      // Step 1
+      // **********************************************
+      var continueStep1 = true;
+      foreach (var t in _endingsStep1A.Where(t => strR1.EndsWith(t)))
+      {
+        // Delete the ending
+        word = word.Remove(word.Length - t.Length);
+        continueStep1 = false;
+        break;
+      }
+
+      // Recreate the r1 and r2 string
+      strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
+
+      if (continueStep1)
+      {
+        foreach (var t in _endingsStep1B.Where(t => strR1.EndsWith(t)))
         {
-            // Set values for instance variables
-            this.vowels = new char[] { 'a', 'e', 'i', 'o', 'u', 'y', 'ä', 'ö', 'ü' };
-            this.valid_s_endings = new char[] { 'b', 'd', 'f', 'g', 'h', 'k', 'l', 'm', 'n', 'r', 't' };
-            this.valid_st_endings = new char[] { 'b', 'd', 'f', 'g', 'h', 'k', 'l', 'm', 'n', 't' };
-            this.endingsStep1a = new string[] { "ern", "em", "er" };
-            this.endingsStep1b = new string[] { "es", "en", "e" };
-            this.endingsStep2 = new string[] { "est", "en", "er" };
-            this.endingsStep3 = new string[] { "keit", "heit", "lich", "isch", "ung", "end", "ik", "ig" };
+          // Delete the ending
+          word = word.Remove(word.Length - t.Length);
 
-        } // End of the constructor
+          if (word.EndsWith("niss"))
+            word = word.Remove(word.Length - 1);
+          continueStep1 = false;
+          break;
+        }
+      }
 
-        #endregion
+      // Recreate the r1 and r2 string
+      strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
 
-        #region Methods
+      // Delete a s in the end if the s is preceded by a valid s-ending, 
+      if (continueStep1 && strR1.EndsWith("s"))
+      {
+        // Get the preceding char before the s
+        var precedingChar = word.Length > 1 ? word[word.Length - 2] : '\0';
 
-        /// <summary>
-        /// Get steam words as a string array from words in a string array
-        /// </summary>
-        /// <param name="words">An array of words</param>
-        /// <returns>An array of steam words</returns>
-        public override string[] GetSteamWords(string[] words)
+        // Check if the preceding char is a valid s-ending
+        if (_validSEndings.Any(t => precedingChar == t))
+          word = word.Remove(word.Length - 1);
+      }
+      // **********************************************
+
+      // **********************************************
+      // Step 2
+      // **********************************************
+      // Recreate the r1 and r2 string
+      strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
+
+      var check_ends_with_st = true;
+      foreach (var t in _endingsStep2.Where(t => strR1.EndsWith(t)))
+      {
+        // Delete the ending
+        word = word.Remove(word.Length - t.Length);
+        check_ends_with_st = false;
+        break;
+      }
+
+      // Recreate the r1 and r2 string
+      strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
+
+      // Delete st in the end if st is preceded by a valid st-ending, itself preceded by at least 3 letters 
+      if (check_ends_with_st && word.Length > 5 && strR1.EndsWith("st"))
+      {
+        // Get the preceding char before the s
+        var precedingChar = word[word.Length - 3];
+
+        if (_validStEndings.Any(t => precedingChar == t))
+          word = word.Remove(word.Length - 2);
+      }
+      // **********************************************
+
+      // **********************************************
+      // Step 3
+      // **********************************************
+      // Recreate the r1 and r2 string
+      strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
+      var strR2 = partIndexR[1] < word.Length ? word.Substring(partIndexR[1]) : "";
+
+      foreach (var end in _endingsStep3.Where(end => word.EndsWith(end)))
+      {
+        switch (end)
         {
-            // Create the string array to return
-            string[] steamWords = new string[words.Length];
-
-            // Loop the list of words
-            for (int i = 0; i < words.Length; i++)
+          case "end":
+          case "ung":
+            // Delete if in R2
+            if (strR2.EndsWith(end))
             {
-                steamWords[i] = GetSteamWord(words[i]);
+              word = word.Remove(word.Length - end.Length);
+
+              // If preceded by ig, delete if in R2 and not preceded by e
+              if (strR2.EndsWith("ig" + end) && word.EndsWith("eig") == false)
+                word = word.Remove(word.Length - 2);
             }
-
-            // Return the steam word array
-            return steamWords;
-
-        } // End of the GetSteamWords method
-
-        /// <summary>
-        /// Get the steam word from a specific word
-        /// </summary>
-        /// <param name="word">The word to strip</param>
-        /// <returns>The stripped word</returns>
-        public override string GetSteamWord(string word)
-        {
-            // Replace ß by ss
-            word = word.Replace("ß", "ss");
-
-            // Make sure that the word is in lower case characters
-            word = word.ToLowerInvariant();
-
-            // Create a char array that can be used over an over again
-            char[] chars = word.ToCharArray();
-
-            // Put u and y between vowels into upper case
-            Int32 charCount = chars.Length - 1;
-            for (int i = 1; i < charCount; i++)
+            break;
+          case "ig":
+          case "ik":
+          case "isch":
+            // Delete if in R2 and not preceded by e
+            if (strR2.EndsWith(end) && word.EndsWith("e" + end) == false)
+              word = word.Remove(word.Length - end.Length);
+            break;
+          case "lich":
+          case "heit":
+            // Delete if in R2
+            if (strR2.EndsWith(end))
             {
-                if (chars[i] == 'u' && IsVowel(chars[i - 1]) == true && IsVowel(chars[i + 1]) == true)
-                {
-                    chars[i] = 'U';
-                }
-                else if (chars[i] == 'y' && IsVowel(chars[i - 1]) == true && IsVowel(chars[i + 1]) == true)
-                {
-                    chars[i] = 'Y';
-                }
+              word = word.Remove(word.Length - end.Length);
+
+              // If preceded by er or en, delete if in R1 
+              if (strR1.EndsWith("en" + end) || strR1.EndsWith("er" + end))
+                word = word.Remove(word.Length - 2);
             }
-
-            // Get indexes for R1 and R2
-            Int32[] partIndexR = CalculateR1R2(chars);
-
-            // Recreate the word
-            word = new string(chars);
-
-            // Create the r1 and r2 string
-            string strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
-            string strR2 = partIndexR[1] < word.Length ? word.Substring(partIndexR[1]) : "";
-
-            // **********************************************
-            // Step 1
-            // **********************************************
-            bool continue_step_1 = true;
-            for (int i = 0; i < this.endingsStep1a.Length; i++)
+            break;
+          case "keit":
+            // Delete if in R2
+            if (strR2.EndsWith(end))
             {
-                // Check if the endings matches
-                if (strR1.EndsWith(this.endingsStep1a[i]))
-                {
-                    // Delete the ending
-                    word = word.Remove(word.Length - this.endingsStep1a[i].Length);
-                    continue_step_1 = false;
-                    break;
-                }
+              word = word.Remove(word.Length - end.Length);
+
+              // If preceded by lich or ig, delete if in R2
+              if (strR2.EndsWith("lich" + end))
+                word = word.Remove(word.Length - 4);
+              else if (strR2.EndsWith("ig" + end))
+                word = word.Remove(word.Length - 2);
             }
+            break;
+        }
 
-            // Recreate the r1 and r2 string
-            strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
-            strR2 = partIndexR[1] < word.Length ? word.Substring(partIndexR[1]) : "";
+        // Break out from the loop, the ending has been found
+        break;
+      }
+      // **********************************************
 
-            if(continue_step_1 == true)
-            {
-                for (int i = 0; i < this.endingsStep1b.Length; i++)
-                {
-                    // Check if the endings matches
-                    if (strR1.EndsWith(this.endingsStep1b[i]))
-                    {
-                        // Delete the ending
-                        word = word.Remove(word.Length - this.endingsStep1b[i].Length);
+      // Turn the word to lower case
+      word = word.ToLowerInvariant();
 
-                        if (word.EndsWith("niss") == true)
-                        {
-                            word = word.Remove(word.Length - 1);
-                        }
-                        continue_step_1 = false;
-                        break;
-                    }
-                }
-            }
+      // Replace the umlaut accent from a, o and u.
+      word = word.Replace('ä', 'a').Replace('ü', 'u').Replace('ö', 'o');
 
-            // Recreate the r1 and r2 string
-            strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
-            strR2 = partIndexR[1] < word.Length ? word.Substring(partIndexR[1]) : "";
+      // Return the word
+      return word;
+    } // End of the GetSteamWord method
 
-            // Delete a s in the end if the s is preceded by a valid s-ending, 
-            if (continue_step_1 == true && strR1.EndsWith("s") == true)
-            {
-                // Get the preceding char before the s
-                char precedingChar = word.Length > 1 ? word[word.Length - 2] : '\0';
+    /// <summary>
+    ///   Get steam words as a string array from words in a string array
+    /// </summary>
+    /// <param name="words">An array of words</param>
+    /// <returns>An array of steam words</returns>
+    public override string[] GetSteamWords(string[] words)
+    {
+      // Create the string array to return
+      var steamWords = new string[words.Length];
 
-                // Check if the preceding char is a valid s-ending
-                for (int i = 0; i < this.valid_s_endings.Length; i++)
-                {
-                    if (precedingChar == this.valid_s_endings[i])
-                    {
-                        // Delete the s
-                        word = word.Remove(word.Length - 1);
-                        break;
-                    }
-                }
-            }
-            // **********************************************
+      // Loop the list of words
+      for (var i = 0; i < words.Length; i++)
+        steamWords[i] = GetSteamWord(words[i]);
 
-            // **********************************************
-            // Step 2
-            // **********************************************
-            // Recreate the r1 and r2 string
-            strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
-            strR2 = partIndexR[1] < word.Length ? word.Substring(partIndexR[1]) : "";
+      // Return the steam word array
+      return steamWords;
+    } // End of the GetSteamWords method
 
-            bool check_ends_with_st = true;
-            for (int i = 0; i < this.endingsStep2.Length; i++)
-            {
-                // Make sure that we compare on lowercase letters
-                if (strR1.EndsWith(this.endingsStep2[i]))
-                {
-                    // Delete the ending
-                    word = word.Remove(word.Length - this.endingsStep2[i].Length);
-                    check_ends_with_st = false;
-                    break;
-                }
-            }
+    /// <summary>
+    ///   Calculate the R1 and R2 part for a word
+    /// </summary>
+    /// <param name="characters">An array of characters</param>
+    /// <returns>An int array with the r1 and r2 index</returns>
+    private int[] CalculateR1R2(char[] characters)
+    {
+      // Create the int array to return
+      var r1 = characters.Length;
+      var r2 = characters.Length;
 
-            // Recreate the r1 and r2 string
-            strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
-            strR2 = partIndexR[1] < word.Length ? word.Substring(partIndexR[1]) : "";
+      // Calculate R1
+      for (var i = 1; i < characters.Length; i++)
+      {
+        if (IsVowel(characters[i]) || !IsVowel(characters[i - 1])) continue;
+        // Set the r1 index
+        r1 = i + 1;
+        break;
+      }
 
-            // Delete st in the end if st is preceded by a valid st-ending, itself preceded by at least 3 letters 
-            if (check_ends_with_st == true && word.Length > 5 && strR1.EndsWith("st") == true)
-            {
-                // Get the preceding char before the s
-                char precedingChar = word[word.Length - 3];
+      // Calculate R2
+      for (var i = r1; i < characters.Length; ++i)
+      {
+        if (IsVowel(characters[i]) || !IsVowel(characters[i - 1])) continue;
+        // Set the r2 index
+        r2 = i + 1;
+        break;
+      }
 
-                for (int i = 0; i < this.valid_st_endings.Length; i++)
-                {
-                    // Check if the preceding char is a valid s-ending
-                    if (precedingChar == this.valid_st_endings[i])
-                    {
-                        // Delete the st
-                        word = word.Remove(word.Length - 2);
-                        break;
-                    }
-                }
-            }
-            // **********************************************
+      // Adjust R1
+      if (r1 < 3)
+        r1 = 3;
 
-            // **********************************************
-            // Step 3
-            // **********************************************
-            // Recreate the r1 and r2 string
-            strR1 = partIndexR[0] < word.Length ? word.Substring(partIndexR[0]) : "";
-            strR2 = partIndexR[1] < word.Length ? word.Substring(partIndexR[1]) : "";
-
-            for (int i = 0; i < this.endingsStep3.Length; i++)
-            {
-                // Get the ending
-                string end = this.endingsStep3[i];
-
-                // Check if the word ends with the ending
-                if(word.EndsWith(end) == true)
-                {
-
-                    if (end == "end" || end == "ung")
-                    {
-                        // Delete if in R2
-                        if(strR2.EndsWith(end) == true)
-                        {
-                            word = word.Remove(word.Length - end.Length);
-
-                            // If preceded by ig, delete if in R2 and not preceded by e
-                            if (strR2.EndsWith("ig" + end) == true && word.EndsWith("eig") == false)
-                            {
-                                word = word.Remove(word.Length - 2);
-                            }
-                        }
-                    }
-                    else if (end == "ig" || end == "ik" || end == "isch")
-                    {
-                        // Delete if in R2 and not preceded by e
-                        if(strR2.EndsWith(end) == true && word.EndsWith("e" + end) == false)
-                        {
-                            word = word.Remove(word.Length - end.Length);
-                        }
-                    }
-                    else if (end == "lich" || end == "heit")
-                    {
-                        // Delete if in R2
-                        if(strR2.EndsWith(end) == true)
-                        {
-                            word = word.Remove(word.Length - end.Length);
-
-                            // If preceded by er or en, delete if in R1 
-                            if (strR1.EndsWith("en" + end) == true || strR1.EndsWith("er" + end) == true)
-                            {
-                                word = word.Remove(word.Length - 2);
-                            }
-                        }
-                    }
-                    else if (end == "keit")
-                    {
-                        // Delete if in R2
-                        if(strR2.EndsWith(end) == true)
-                        {
-                            word = word.Remove(word.Length - end.Length);
-
-                            // If preceded by lich or ig, delete if in R2
-                            if(strR2.EndsWith("lich" + end) == true)
-                            {
-                                word = word.Remove(word.Length - 4);
-                            }
-                            else if (strR2.EndsWith("ig" + end) == true)
-                            {
-                                word = word.Remove(word.Length - 2);
-                            }
-                        } 
-                    }
-
-                    // Break out from the loop, the ending has been found
-                    break;
-                }
-            }
-            // **********************************************
-
-            // Turn the word to lower case
-            word = word.ToLowerInvariant();
-
-            // Replace the umlaut accent from a, o and u.
-            word = word.Replace('ä', 'a').Replace('ü', 'u').Replace('ö', 'o');
-
-            // Return the word
-            return word;
-
-        } // End of the GetSteamWord method
-
-        #endregion
-
-        #region Helper methods
-
-        /// <summary>
-        /// Calculate the R1 and R2 part for a word
-        /// </summary>
-        /// <param name="characters">An array of characters</param>
-        /// <returns>An int array with the r1 and r2 index</returns>
-        public Int32[] CalculateR1R2(char[] characters)
-        {
-            // Create the int array to return
-            Int32 r1 = characters.Length;
-            Int32 r2 = characters.Length;
-
-            // Calculate R1
-            for (int i = 1; i < characters.Length; i++)
-            {
-                if (IsVowel(characters[i]) == false && IsVowel(characters[i - 1]) == true)
-                {
-                    // Set the r1 index
-                    r1 = i + 1;
-                    break;
-                }
-            }
-
-            // Calculate R2
-            for (int i = r1; i < characters.Length; ++i)
-            {
-                if (IsVowel(characters[i]) == false && IsVowel(characters[i - 1]) == true)
-                {
-                    // Set the r2 index
-                    r2 = i + 1;
-                    break;
-                }
-            }
-
-            // Adjust R1
-            if(r1 < 3)
-            {
-                r1 = 3;
-            }
-
-            // Return the int array
-            return new Int32[] { r1, r2 };
-
-        } // End of the calculateR1R2 method
-
-        #endregion
-
-    } // End of the class
-
+      // Return the int array
+      return new[] {r1, r2};
+    } // End of the calculateR1R2 method
+  } // End of the class
 } // End of the namespace

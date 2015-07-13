@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Annytab;
+using Annytab.Abstract;
 
 namespace TestProgram
 {
@@ -5593,7 +5594,7 @@ namespace TestProgram
                 "zoolog", "zoophyt", "zoophyt", "zoophyt", "zorillo", "zorillo", "zossimov", "zu" };
 
             // Create a english stemmer
-            Stemmer stemmer = new EnglishStemmer();
+            AbstractStemmer stemmer = new EnglishStemmer();
 
             // Test the stemmer
             for (int i = 0; i < words.Length; i++)

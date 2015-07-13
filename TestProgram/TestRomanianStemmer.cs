@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Annytab;
+using Annytab.Abstract;
 
 namespace TestProgram
 {
@@ -4336,7 +4337,7 @@ namespace TestProgram
                 "zvîrcol", "zvîrcolir", "zvîrl", "zvîrlînd", "zvon", "zvonur", "zvonur" };
 
             // Create a romanian stemmer
-            Stemmer stemmer = new RomanianStemmer();
+            AbstractStemmer stemmer = new RomanianStemmer();
 
             // Test the stemmer
             for (int i = 0; i < words.Length; i++)

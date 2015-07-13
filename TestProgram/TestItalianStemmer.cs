@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Annytab;
+using Annytab.Abstract;
 
 namespace TestProgram
 {
@@ -6948,7 +6949,7 @@ namespace TestProgram
                 "zuccher", "zuccherin", "zuccher", "zucc", "zuccon", "zuff", "zurig", "zwe", "zwerver", "zwickel" };
 
             // Create an italian stemmer
-            Stemmer stemmer = new ItalianStemmer();
+            AbstractStemmer stemmer = new ItalianStemmer();
 
             // Test the stemmer
             for (int i = 0; i < words.Length; i++)

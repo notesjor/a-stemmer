@@ -57,7 +57,6 @@
   </Choose>
   <ItemGroup>
     <Compile Include="TestDanishStemmer.cs" />
-    <Compile Include="TestDefaultStemmer.cs" />
     <Compile Include="TestDutchStemmer.cs" />
     <Compile Include="TestEnglishStemmer.cs" />
     <Compile Include="TestFinnishStemmer.cs" />

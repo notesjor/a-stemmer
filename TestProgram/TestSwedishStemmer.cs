@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Annytab;
+using Annytab.Abstract;
 
 namespace TestProgram
 {
@@ -5952,7 +5953,7 @@ namespace TestProgram
                 "övr", "övr", "öänd" };
 
             // Create a swedish stemmer
-            Stemmer stemmer = new SwedishStemmer();
+            AbstractStemmer stemmer = new SwedishStemmer();
 
             // Test the stemmer
             for (int i = 0; i < words.Length; i++)

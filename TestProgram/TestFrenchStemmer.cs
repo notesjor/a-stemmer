@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Annytab;
+using Annytab.Abstract;
 
 namespace TestProgram
 {
@@ -4690,7 +4691,7 @@ namespace TestProgram
                 "zoroastr", "zurl" };
 
             // Create a french stemmer
-            Stemmer stemmer = new FrenchStemmer();
+            AbstractStemmer stemmer = new FrenchStemmer();
 
             // Test the stemmer
             for (int i = 0; i < words.Length; i++)

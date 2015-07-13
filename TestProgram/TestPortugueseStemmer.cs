@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Annytab;
+using Annytab.Abstract;
 
 namespace TestProgram
 {
@@ -6136,7 +6137,7 @@ namespace TestProgram
                 "zon", "zon", "zoneament", "zonz", "zoobor", "zoológ", "zoomp", "zul", "zumb", "zumb" };
 
             // Create a portuguese stemmer
-            Stemmer stemmer = new PortugueseStemmer();
+            AbstractStemmer stemmer = new PortugueseStemmer();
 
             // Test the stemmer
             for (int i = 0; i < words.Length; i++)

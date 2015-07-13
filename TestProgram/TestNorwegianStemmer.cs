@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Annytab;
+using Annytab.Abstract;
 
 namespace TestProgram
 {
@@ -4782,7 +4783,7 @@ namespace TestProgram
                 "øystein" };
 
             // Create a norwegian stemmer
-            Stemmer stemmer = new NorwegianStemmer();
+            AbstractStemmer stemmer = new NorwegianStemmer();
 
             // Test the stemmer
             for (int i = 0; i < words.Length; i++)
